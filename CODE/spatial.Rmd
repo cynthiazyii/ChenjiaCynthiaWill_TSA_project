@@ -11,17 +11,11 @@ install.packages("rnaturalearthdata")
 ```
 
 ```{r library, warning=FALSE, message=F, hide = T}
-rm(list=ls())
-library(car)
-library(lmtest)
 library(ggplot2)
-library(dplyr)
-library(tidyr)
 library(GGally)
 library(readxl)
 library(wbstats) 
 library(purrr)
-library(readxl)
 library(sf)
 library('rnaturalearth')
 library(sp)
