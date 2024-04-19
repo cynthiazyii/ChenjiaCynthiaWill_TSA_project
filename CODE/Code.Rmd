@@ -1,0 +1,52 @@
+---
+title: "Untitled"
+author: "Chenjia"
+date: "2024-04-13"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(lubridate)
+library(dplyr)
+library(forecast) 
+```
+
+
+```{r}
+raw_df<-read.csv("./Project/climate-timeline_Glimpse_Google-Trends.csv", skip = 5)
+
+df <- raw_df %>%
+  mutate(Time = as.Date(Time, format="%Y-%m-%d")) %>% 
+  rename(Date = Time,
+         Normalized_Value = `Normalized.Value..0.100.`,
+         Absolute_Volume = `Absolute.Google.Search.Volume`)
+```
+
+```{r}
+ts_df <- msts(df$Absolute_Volume, 
+                           seasonal.periods =c(3,12),
+                           start=c(2003,12))
+
+ts_df_training <- subset(ts_df,end = length(ts_df)-12)
+                         
+ts_df_testing <- subset(ts_df,start = length(ts_df)-12)
+
+ts_df_training %>% mstl() %>%
+  autoplot()
+```
+```{r}
+TBATS_fit <- tbats(ts_df_training)
+
+TBATS_forcast <- forecast(TBATS_fit, h=12)
+
+autoplot(ts_df_testing) +
+  autolayer(TBATS_forcast, series="TBATS",PI=FALSE)
+
+TBATS_scores <- accuracy(TBATS_forcast$mean,ts_df_testing)
+print(TBATS_scores)
+```
+
