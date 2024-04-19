@@ -1,0 +1,54 @@
+---
+title: "Spatial"
+author: "Cynthia Zhou"
+date: "2024-04-19"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+install.packages("rnaturalearthdata")
+```
+
+```{r library, warning=FALSE, message=F, hide = T}
+rm(list=ls())
+library(car)
+library(lmtest)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(GGally)
+library(readxl)
+library(wbstats) 
+library(purrr)
+library(readxl)
+library(sf)
+library('rnaturalearth')
+library(sp)
+```
+
+```{r}
+spatial <- read_excel("Data/spatial.xlsx")
+```
+
+```{r}
+world_map <- ne_countries(scale = "medium", returnclass = "sf")
+```
+
+```{r}
+merged_data <- left_join(world_map, spatial, by = c("name" = "Country"))
+```
+
+```{r}
+merged_data$Index <- as.numeric(as.character(merged_data$Index))
+```
+
+```{r}
+ggplot(data = merged_data) +
+  geom_sf(aes(fill = Index)) +
+  scale_fill_gradient(low = "white", high = 4, na.value = "lightgrey") +
+  labs(title = "Gobal Climate Web Sesearch",
+       fill = "Search Interest Index") +
+  theme_minimal()
+
+```
