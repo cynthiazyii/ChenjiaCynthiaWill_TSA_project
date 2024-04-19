@@ -10,14 +10,20 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r}
-library(lubridate)
-library(dplyr)
-library(forecast) 
+library(ggplot2)
+library(forecast)  
+library(Kendall)
+library(tseries)
+library(outliers)
+library(tidyverse)
+library(smooth)
+library(zoo)
+library(kableExtra)
 ```
 
 
 ```{r}
-raw_df<-read.csv("./Project/climate-timeline_Glimpse_Google-Trends.csv", skip = 5)
+raw_df<-read.csv("./Data/climate-timeline_Glimpse_Google-Trends.csv", skip = 5) 
 
 df <- raw_df %>%
   mutate(Time = as.Date(Time, format="%Y-%m-%d")) %>% 
@@ -38,15 +44,101 @@ ts_df_testing <- subset(ts_df,start = length(ts_df)-12)
 ts_df_training %>% mstl() %>%
   autoplot()
 ```
+
 ```{r}
 TBATS_fit <- tbats(ts_df_training)
 
-TBATS_forcast <- forecast(TBATS_fit, h=12)
+TBATS_for <- forecast(TBATS_fit, h=12)
 
 autoplot(ts_df_testing) +
-  autolayer(TBATS_forcast, series="TBATS",PI=FALSE)
+  autolayer(TBATS_for, series="TBATS",PI=FALSE)
 
-TBATS_scores <- accuracy(TBATS_forcast$mean,ts_df_testing)
+TBATS_scores <- accuracy(TBATS_for$mean,ts_df_testing)
 print(TBATS_scores)
+```
+
+```{r}
+ARIMA_fit <- auto.arima(ts_df_training, 
+                             seasonal=FALSE, 
+                             lambda=0,
+                             xreg=fourier(ts_df_training, 
+                                          K=c(1,2))
+                             )
+
+
+ARIMA_for <- forecast(ARIMA_fit,
+                           xreg=fourier(ts_df_training,
+                                        K=c(1,2),
+                                        h=12),
+                           h=12
+                           )
+
+autoplot(ARIMA_for) + ylab("Search Volume")
+
+autoplot(ts_df_testing) +
+  autolayer(ARIMA_for, series="ARIMA_FOURIER",PI=FALSE) +
+  ylab("Search Volume")
+
+ARIMA_scores <- accuracy(ARIMA_for$mean,ts_df_testing)
+print(ARIMA_scores)
+```
+
+```{r}
+ETS_fit <-  stlf(ts_df_training,h=12)
+autoplot(ETS_fit) + ylab("Search Volume")
+autoplot(ts_df_testing) +
+  autolayer(ETS_fit, series="STL + ETS",PI=FALSE) +
+  ylab("Search Volume")
+
+ETS_scores <- accuracy(ETS_fit$mean,ts_df_testing)
+print(ETS_scores)
+```
+
+```{r}
+NN_fit <- nnetar(ts_df_training,p=1,P=0,xreg=fourier(ts_df_training, K=c(1,1)))
+
+NN_for <- forecast(NN_fit, h=12,xreg=fourier(ts_df_training, 
+                                          K=c(1,1),h=12))
+
+#Plot model + observed data
+autoplot(ts_df_testing) +
+  autolayer(NN_for, series="Neural Network",PI=FALSE)+
+  ylab("Search Volume") 
+
+NN_scores <- accuracy(NN_for$mean,ts_df_testing)
+print(NN_scores)
+```
+
+```{r}
+SSES_seas <- es(ts_df_training,model="AMM",h=12,holdout=FALSE)
+
+autoplot(ts_df_testing) +
+  autolayer(SSES_seas$forecast, series="SSES")+
+  ylab("Search Volume") 
+
+SSES_scores <- accuracy(SSES_seas$forecast,ts_df_testing)
+print(SSES_scores)
+
+
+```
+
+```{r}
+scores <- as.data.frame(
+  rbind(ETS_scores, ARIMA_scores, TBATS_scores, NN_scores, SSES_scores)
+  )
+row.names(scores) <- c("STL+ETS", "ARIMA+Fourier","TBATS","NN","SSES")
+
+#choose model with lowest RMSE
+best_model_index <- which.min(scores[,"RMSE"])
+cat("The best model by RMSE is:", row.names(scores[best_model_index,]))
+```
+
+```{r}
+kbl(scores, 
+      caption = "Forecast Accuracy for Daily Active Power",
+      digits = array(5,ncol(scores))) %>%
+  kable_styling(full_width = FALSE, position = "center", latex_options = "hold_position") %>%
+  #highlight model with lowest RMSE
+  kable_styling(latex_options="striped", stripe_index = which.min(scores[,"RMSE"]))
 ```
 
