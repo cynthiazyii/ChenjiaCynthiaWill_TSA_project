@@ -19,8 +19,9 @@ library(tidyverse)
 library(smooth)
 library(zoo)
 library(kableExtra)
+library(cowplot)
 ```
-
+#  Methodology/Analysis
 
 ```{r}
 raw_df<-read.csv("./Data/climate-timeline_Glimpse_Google-Trends.csv", skip = 5) 
@@ -44,8 +45,40 @@ ts_df_testing <- subset(ts_df,start = length(ts_df)-12)
 ts_df_training %>% mstl() %>%
   autoplot()
 ```
+First, the data set was read and the Time is converted to "date". The variable of interest (absolute search volume) was renamed and converted to a time series object. A training set and test set was then obtained by filtering data. The last 12 observation was selected as holdouts. The time series data set was plotted to check for trends and seasonality. The seasonal period is set using 3 (quarterly) and 12 (manually).
 
 ```{r}
+plot_grid(
+  autoplot(Acf(df$Absolute_Volume, lag = 40, plot=FALSE), 
+                main = "ACF Absolute Search Volume"),
+  autoplot(Pacf(df$Absolute_Volume, lag = 40, plot=FALSE),  
+                  main = "PACF Absolute Search Volume")
+)
+
+```
+The ACF plot displays the correlation between the time series data and its lagged values over different time lags. The plot shows several spikes that are outside the blue dashed confidence interval lines, especially at the initial lags. This suggests that there is a significant autocorrelation at those lags. The PACF plot, on the other hand, shows the partial correlation between the time series and its lagged values, controlling for the values at shorter lags. The significant spike at the first lag indicates a strong correlation. Since the spike at lag 1 is followed by a cutoff, it might suggest an AR(1) component.The slow decay in the ACF plot could indicate that the data is non-stationary or has seasonal patterns.
+
+The models that are being used by this analysis include TBATS (Trigonometric seasonality, Box-Cox transformation, ARMA errors, Trend and
+ Seasonal components) model, ARIMA + FOURIER terms, STL+ETS (Seasonal and Trend decomposition using Loess + Error, Trend, Seasonal) model, Neural Network, and SSES (State Space Exponential Smoothing) model. A short description of the models are given below:
+ 
+## Description
+### 1 TBATS
+TBATS was designed to forecast time series with multiple seasonal periods. For example, daily data may have a weekly pattern as well as an annual pattern. Or hourly data can have three seasonal periods: a daily pattern, a weekly pattern, and an annual pattern. In TBATS, a Box-Cox transformation is applied to the original time series, and then this is modelled as a linear combination of an exponentially smoothed trend, a seasonal component and an ARMA component. The seasonal components are modelled by trigonometric functions via Fourier series. TBATS conducts some hyper-parameter tuning (e.g. which of these components to keep and which to discard) using AIC.
+
+### 2 ARIMA + FOURIER terms
+The ARIMA model with Fourier terms for seasonal adjustment is a sophisticated approach for forecasting time series data, particularly when the data exhibits complex seasonality that cannot be adequately modeled by simple seasonal ARIMA (SARIMA) components alone.
+
+### 3 STL+ETS
+STL is a versatile and robust method for decomposing time series. STL is an acronym for “Seasonal and Trend decomposition using Loess”, while loess is a method for estimating nonlinear relationships. The ETS models are a family of time series models with an underlying state space model consisting of a level component, a trend component (T), a seasonal component (S), and an error term (E).
+
+### 4 Neural Network
+Neural networks or simulated neural networks are a subset of machine learning which is inspired by the human brain. They mimic how biological neurons communicate with one another to come up with a decision. A neural network consists of an input layer, a hidden layer, and an output layer. The first layer receives raw input, it is processed by multiple hidden layers, and the last layer produces the result. 
+
+### 5 SSES
+The exponential smoothing state space model is a statistical model that generates prediction intervals and point forecasts. It is a stochastic data generating process that can produce an entire forecast distribution. The exponential smoothing methods generate point forecasts, and the statistical models generate the same point forecasts, but can also generate prediction intervals.
+
+```{r}
+#TBATS
 TBATS_fit <- tbats(ts_df_training)
 
 TBATS_for <- forecast(TBATS_fit, h=12)
@@ -58,6 +91,7 @@ print(TBATS_scores)
 ```
 
 ```{r}
+#ARIMA
 ARIMA_fit <- auto.arima(ts_df_training, 
                              seasonal=FALSE, 
                              lambda=0,
@@ -84,6 +118,7 @@ print(ARIMA_scores)
 ```
 
 ```{r}
+#STL+ETS
 ETS_fit <-  stlf(ts_df_training,h=12)
 autoplot(ETS_fit) + ylab("Search Volume")
 autoplot(ts_df_testing) +
@@ -95,10 +130,11 @@ print(ETS_scores)
 ```
 
 ```{r}
-NN_fit <- nnetar(ts_df_training,p=1,P=0,xreg=fourier(ts_df_training, K=c(1,1)))
+#NN
+NN_fit <- nnetar(ts_df_training,p=0,P=1,xreg=fourier(ts_df_training, K=c(1,4)))
 
 NN_for <- forecast(NN_fit, h=12,xreg=fourier(ts_df_training, 
-                                          K=c(1,1),h=12))
+                                          K=c(1,4),h=12))
 
 #Plot model + observed data
 autoplot(ts_df_testing) +
@@ -110,6 +146,7 @@ print(NN_scores)
 ```
 
 ```{r}
+#SSES
 SSES_seas <- es(ts_df_training,model="AMM",h=12,holdout=FALSE)
 
 autoplot(ts_df_testing) +
@@ -123,6 +160,7 @@ print(SSES_scores)
 ```
 
 ```{r}
+# SCORE
 scores <- as.data.frame(
   rbind(ETS_scores, ARIMA_scores, TBATS_scores, NN_scores, SSES_scores)
   )
@@ -134,11 +172,27 @@ cat("The best model by RMSE is:", row.names(scores[best_model_index,]))
 ```
 
 ```{r}
+#SCORE TABLE
 kbl(scores, 
       caption = "Forecast Accuracy for Daily Active Power",
       digits = array(5,ncol(scores))) %>%
   kable_styling(full_width = FALSE, position = "center", latex_options = "hold_position") %>%
   #highlight model with lowest RMSE
   kable_styling(latex_options="striped", stripe_index = which.min(scores[,"RMSE"]))
+```
+The data was trained from December 2003 to March 2023 and tested from April 2023 to March 2024. Predictions were made for the next 12 months. Based on the residual scores, the neural network (NN) model outperformed others, achieving the lowest RMSE of 353,492.8. In contrast, the STL+ETS model registered the highest RMSE at 1,339,766.2. Consequently, the NN model was selected for predicting the absolute search volume. It's important to note that the residual scores were quite high. This high error rate is partly because our base numbers are substantial, typically in the millions. The NN's residual score, although in the hundreds of thousands, represents about 10 percent of the data, which is still considered a significant error. Moving forward, the next step involves removing outliers, which are causing huge spikes, and rerunning the candidate model.
+
+```{r}
+#FORECAST
+NN_fit_2 <- nnetar(ts_df,p=0,P=1,xreg=fourier(ts_df, K=c(1,4)))
+
+NN_for_2 <- forecast(NN_fit_2, h=12,xreg=fourier(ts_df, 
+                                          K=c(1,4),h=12))
+
+#Plot FORECAST
+autoplot(NN_for_2)+
+  ylab("Search Volume") 
+
+
 ```
 
