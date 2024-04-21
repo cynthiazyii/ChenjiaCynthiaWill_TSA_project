@@ -25,24 +25,31 @@ library(sp)
 spatial <- read_excel("Data/spatial.xlsx")
 ```
 
-```{r}
+# Date Information
+Our data set is sourced from Google Trends. As the original data is interest index which only represents the popularity of total search term in certain time periods or regions, we use a Chrome extension called Glimpse-Google Trend Supercharged to convert interest index into absolute values. We captured the number of searches for climate-related search terms globally from 2004 to the present.
+
+```{r data, echo=FALSE}
+datainfor <- data.frame( Data = c("Source: ", "Search Term: ", "Time Range: ", "Spatial Range: "), 
+                         Information = c("Google Trend", "Climate","2004 to present","Global")
+                        )
+knitr::kable(datainfor, caption = "Data Information")
+```
+
+# Spatial Characteristics
+In the global distribution map of climate-related topic web search, African countries enjoy the most popularity as a fraction of total searches in their region. Related search terms account for a moderate proportion in North America, Australia and South Asia, while it was not that popular in South America, Europe and other Asia regions. On a country level, Ethiopia and Zimbabwe had the largest proportion of climate search terms in their total searches.
+
+Population can be a possible reason for the difference. In African countries, where few people have access to the Internet, the proportion of climate search terms may be magnified. In addition, international organizations and non-governmental organizations such as the United Nations Environment Program are headquartered in Africa, leading to related behaviors. The extent to which different countries are affected by climate change is also important. Countries like the Philippines, which are at the forefront of climate change, rank very high both in the interest index and in absolute values. People who live there are naturally more concerned about the climate.
+
+```{r, echo=FALSE}
 world_map <- ne_countries(scale = "medium", returnclass = "sf")
-```
-
-```{r}
 merged_data <- left_join(world_map, spatial, by = c("name" = "Country"))
-```
-
-```{r}
 merged_data$Index <- as.numeric(as.character(merged_data$Index))
-```
-
-```{r}
 ggplot(data = merged_data) +
   geom_sf(aes(fill = Index)) +
   scale_fill_gradient(low = "white", high = 4, na.value = "lightgrey") +
-  labs(title = "Gobal Climate Web Sesearch",
+  labs(title = "Global Climate Web Sesearch Map",
        fill = "Search Interest Index") +
   theme_minimal()
 
 ```
+
