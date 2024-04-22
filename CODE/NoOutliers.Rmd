@@ -1,0 +1,221 @@
+---
+title: "No Outliers"
+author: "Zhenghao Lin"
+date: "2024-04-22"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(ggplot2)
+library(forecast)  
+library(Kendall)
+library(tseries)
+library(outliers)
+library(tidyverse)
+library(smooth)
+library(zoo)
+library(kableExtra)
+library(cowplot)
+```
+
+```{r}
+raw_df<-read.csv("./Data/climate-timeline_Glimpse_Google-Trends.csv", skip = 5) 
+
+df <- raw_df %>%
+  mutate(Time = as.Date(Time, format="%Y-%m-%d")) %>% 
+  rename(Date = Time,
+         Normalized_Value = `Normalized.Value..0.100.`,
+         Absolute_Volume = `Absolute.Google.Search.Volume`)
+```
+# Outlier Removal and Model Optimization
+This section of the report builds upon the initial time series analysis by addressing outliers in the dataset and re-evaluating the forecasting models to identify the best performer in a refined dataset. The focus is to enhance model accuracy by minimizing the distortion effects caused by outliers.
+
+## Outlier Detection and Interpolation
+The process began by identifying outliers using the Interquartile Range (IQR) method, a robust technique that determines extreme values based on the distribution's quartiles. Outliers were defined as observations that fall below the first quartile minus 1.5 times the IQR or above the third quartile plus 1.5 times the IQR. These outliers were then replaced using spline interpolation, which provides a smooth estimate that is less likely to be influenced by extreme values, hence maintaining the integrity of the time series.
+
+## Methodology
+The outliers in the Absolute_Volume data were first visually identified and marked in the dataset. Below is the graph of the time series plot with outliers identified through IQR method.
+```{r}
+#Identify the outliers
+IQR_value <- IQR(df$Absolute_Volume, na.rm = TRUE)
+upper_bound <- quantile(df$Absolute_Volume, 0.75, na.rm = TRUE) + 1.5 * IQR_value
+lower_bound <- quantile(df$Absolute_Volume, 0.25, na.rm = TRUE) - 1.5 * IQR_value
+
+# Add a new column for outliers
+df$Outlier <- ifelse(df$Absolute_Volume > upper_bound | df$Absolute_Volume < lower_bound, "Yes", "No")
+
+ggplot(df, aes(x = Date, y = Absolute_Volume)) + 
+  geom_line(color = "blue", size = 1) + 
+  geom_point(aes(color = Outlier), size = 2) +  # Points colored based on outlier status
+  scale_color_manual(values = c('No' = "blue", 'Yes' = "red")) +  # Red for outliers
+  labs(title = "Time Series Residuals with Outliers Highlighted",
+       x = "Date",
+       y = "Absolute_Volume")
+```
+The na.spline function from the zoo package was then used to interpolate and fill in these outliers based on neighboring values, which helps in preserving the trend and seasonal patterns of the series. The following figure from the analysis illustrates the original data against the interpolated data, showing how the outliers have been integrated.
+```{r}
+df$Interpolated_Volume <- df$Absolute_Volume
+
+outliers_indices <- which(df$Outlier == "Yes")
+df$Interpolated_Volume[outliers_indices] <- NA
+
+df$Interpolated_Volume <- na.spline(df$Interpolated_Volume)
+
+ggplot(df, aes(x = Date)) + 
+  geom_line(aes(y = Absolute_Volume, colour = "Original"), size=1, alpha=0.5) +
+  geom_line(aes(y = Interpolated_Volume, colour = "Interpolated"), size=1) +
+  scale_colour_manual("", 
+                      breaks = c("Original", "Interpolated"),
+                      values = c("grey", "blue")) +
+  labs(title = "Original vs Interpolated Time Series",
+       x = "Date",
+       y = "Volume")
+
+```
+## Model Re-evaluation
+With the outliers addressed, the dataset was split into training and testing sets. The analysis method and forecasting models used in the previous section were re-applied to this cleaned data.
+```{r}
+clean_df <- df %>%
+  select(Date, Interpolated_Volume)
+
+ts_clean_df <- msts(df$Interpolated_Volume, 
+                           seasonal.periods =c(3,12),
+                           start=c(2003,12))
+
+ts_clean_df_training <- subset(ts_clean_df,end = length(ts_clean_df)-12)
+                         
+ts_clean_df_testing <- subset(ts_clean_df,start = length(ts_clean_df)-12)
+
+ts_clean_df_training %>% mstl() %>%
+  autoplot()
+```
+When looking at the ACF and PACF plots of the cleaned data frame, the ACF plot reveals strong positive autocorrelations at the initial lags and then gradually decline as the lags increase, indicating potential non-stationarity within the time series data. Furthermore, the ACF plot exhibits a potential seasonal pattern through its recurring spikes at specific lags.
+For the PACF plot, since it has a significant spike at the first lag and then cut off after it, the plot suggests at least an AR(1) model. This result align with the observation with the ACF and PACF plots of the original dataset.
+
+```{r}
+plot_grid(
+  autoplot(Acf(clean_df$Interpolated_Volume, lag = 40, plot=FALSE), 
+                main = "ACF Absolute Search Volume"),
+  autoplot(Pacf(clean_df$Interpolated_Volume, lag = 40, plot=FALSE),  
+                  main = "PACF Absolute Search Volume")
+)
+```
+```{r}
+#TBATS
+TBATS_fit_clean <- tbats(ts_clean_df_training)
+
+TBATS_for_clean <- forecast(TBATS_fit_clean, h=12)
+
+autoplot(ts_clean_df_testing) +
+  autolayer(TBATS_for_clean, series="TBATS",PI=FALSE)
+
+TBATS_scores_clean <- accuracy(TBATS_for_clean$mean,ts_clean_df_testing)
+print(TBATS_scores_clean)
+```
+
+```{r}
+#ARIMA
+ARIMA_fit_clean <- auto.arima(ts_clean_df_training, 
+                             seasonal=FALSE, 
+                             lambda=0,
+                             xreg=fourier(ts_clean_df_training, 
+                                          K=c(1,2))
+                             )
+
+
+ARIMA_for_clean <- forecast(ARIMA_fit_clean,
+                           xreg=fourier(ts_clean_df_training,
+                                        K=c(1,2),
+                                        h=12),
+                           h=12
+                           )
+
+autoplot(ARIMA_for_clean) + ylab("Search Volume")
+
+autoplot(ts_clean_df_testing) +
+  autolayer(ARIMA_for_clean, series="ARIMA_FOURIER",PI=FALSE) +
+  ylab("Search Volume")
+
+ARIMA_scores_clean <- accuracy(ARIMA_for_clean$mean,ts_clean_df_testing)
+print(ARIMA_scores_clean)
+```
+```{r}
+#STL+ETS
+ETS_fit_clean <-  stlf(ts_clean_df_training,h=12)
+autoplot(ETS_fit_clean) + ylab("Search Volume")
+autoplot(ts_clean_df_testing) +
+  autolayer(ETS_fit_clean, series="STL + ETS",PI=FALSE) +
+  ylab("Search Volume")
+
+ETS_scores_clean <- accuracy(ETS_fit_clean$mean,ts_clean_df_testing)
+print(ETS_scores_clean)
+```
+```{r}
+#NN
+NN_fit_clean <- nnetar(ts_clean_df_training,p=0,P=1,xreg=fourier(ts_clean_df_training, K=c(1,4)))
+
+NN_for_clean <- forecast(NN_fit_clean, h=12,xreg=fourier(ts_clean_df_training, 
+                                          K=c(1,4),h=12))
+
+#Plot model + observed data
+autoplot(ts_clean_df_testing) +
+  autolayer(NN_for_clean, series="Neural Network",PI=FALSE)+
+  ylab("Search Volume") 
+
+NN_scores_clean <- accuracy(NN_for_clean$mean,ts_clean_df_testing)
+print(NN_scores_clean)
+```
+```{r}
+#SSES
+SSES_seas_clean <- es(ts_clean_df_training,model="AMM",h=12,holdout=FALSE)
+
+autoplot(ts_clean_df_testing) +
+  autolayer(SSES_seas_clean$forecast, series="SSES")+
+  ylab("Search Volume") 
+
+SSES_scores_clean <- accuracy(SSES_seas_clean$forecast,ts_clean_df_testing)
+print(SSES_scores_clean)
+
+```
+
+```{r}
+# SCORE for clean_df
+scores_clean <- as.data.frame(
+  rbind(ETS_scores_clean, ARIMA_scores_clean, TBATS_scores_clean, NN_scores_clean, SSES_scores_clean)
+  )
+row.names(scores_clean) <- c("STL+ETS", "ARIMA+Fourier","TBATS","NN","SSES")
+```
+## Results
+Below is the model score table of cleaned dataset with outliers removed. Compared to the original data frame, the cleaning process significantly improved model performance. The TBATS model emerged as the best model with the lowest RMSE, indicating the highest forecasting accuracy among the evaluated models on the cleaned dataset. The improvement underscores the impact of outliers removal on enhancing model reliability and accuracy.
+
+```{r}
+#SCORE TABLE
+kbl(scores_clean, 
+      caption = "Forecast Accuracy for Daily Active Power with Cleaned Dataset",
+      digits = array(5,ncol(scores_clean))) %>%
+  kable_styling(full_width = FALSE, position = "center", latex_options = "hold_position") %>%
+  #highlight model with lowest RMSE
+  kable_styling(latex_options="striped", stripe_index = which.min(scores_clean[,"RMSE"]))
+```
+Below is the forecast of the search volume of term "Climate" on google for next 12 months with TBATS forecasting model using cleaned dataset with outliers removded.
+```{r}
+#FORECAST for clean_df
+TBATS_fit_clean_2 <- tbats(ts_clean_df)
+
+TBATS_for_clean_2 <- forecast(TBATS_fit_clean_2, h=12)
+
+autoplot(TBATS_for_clean_2) +
+  ylab("Search Volume") 
+
+```
+## Conclusion
+The second part of the analysis highlighted the critical role of preprocessing steps, like outliers removal, in predictive analytics. By cleaning the data, all models performed better, with TBATS being the most effective in forecasting under the new dataset conditions. This phase not only provided insights into more reliable forecasting but also demonstrated the necessity of robust data handling methods in analytics workflows.
+
+## Limitations
+One limitation in this section is the potential risk of overfitting our models. While we have implemented sophisticated techniques to interpolate and remove outliers, there is an inherent danger that our models may become too finely tuned to our existing data. This overfitting can easily lead to less accurate forecasts.
+Moreover, our current dataset may not be extensive enough to conclusively differentiate between genuine seasonal effects and anomalies. Some of the spikes might not represent underlying seasonal trends but could instead be one-time events or products of irregular fluctuations. These non-recurring spikes could potentially skew the forecasts.
+To mitigate these concerns and refine our understanding of the time series, it is recommended that we continue to collect data for several more years. An expanded dataset over a longer time horizon will enable us to more reliably conclusion whether the observed spikes are indicative of true seasonality or if they are merely outliers. A broader dataset will also help improve the robustness of our models, making them more adaptable and less prone to overfitting.
