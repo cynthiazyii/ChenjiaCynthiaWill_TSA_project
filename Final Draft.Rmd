@@ -47,8 +47,31 @@ library(purrr)
 library(sf)
 library('rnaturalearth')
 library(sp)
+library(gridExtra)
 ```
-#  Methodology/Analysis
+
+# Methodology
+
+The models that are being used by this analysis include TBATS (Trigonometric seasonality, Box-Cox transformation, ARMA errors, Trend and Seasonal components) model, ARIMA + FOURIER terms, STL+ETS (Seasonal and Trend decomposition using Loess + Error, Trend, Seasonal) model, Neural Network, and SSES (State Space Exponential Smoothing) model. A short description of the models are given below:
+
+### 1 TBATS
+TBATS was designed to forecast time series with multiple seasonal periods. For example, daily data may have a weekly pattern as well as an annual pattern. Or hourly data can have three seasonal periods: a daily pattern, a weekly pattern, and an annual pattern. In TBATS, a Box-Cox transformation is applied to the original time series, and then this is modelled as a linear combination of an exponentially smoothed trend, a seasonal component and an ARMA component. The seasonal components are modelled by trigonometric functions via Fourier series. TBATS conducts some hyper-parameter tuning (e.g. which of these components to keep and which to discard) using AIC.
+
+### 2 ARIMA + FOURIER terms
+The ARIMA model with Fourier terms for seasonal adjustment is a sophisticated approach for forecasting time series data, particularly when the data exhibits complex seasonality that cannot be adequately modeled by simple seasonal ARIMA (SARIMA) components alone.
+
+### 3 STL+ETS
+STL is a versatile and robust method for decomposing time series. STL is an acronym for “Seasonal and Trend decomposition using Loess”, while loess is a method for estimating nonlinear relationships. The ETS models are a family of time series models with an underlying state space model consisting of a level component, a trend component (T), a seasonal component (S), and an error term (E).
+
+### 4 Neural Network
+Neural networks or simulated neural networks are a subset of machine learning which is inspired by the human brain. They mimic how biological neurons communicate with one another to come up with a decision. A neural network consists of an input layer, a hidden layer, and an output layer. The first layer receives raw input, it is processed by multiple hidden layers, and the last layer produces the result. 
+
+### 5 SSES
+The exponential smoothing state space model is a statistical model that generates prediction intervals and point forecasts. It is a stochastic data generating process that can produce an entire forecast distribution. The exponential smoothing methods generate point forecasts, and the statistical models generate the same point forecasts, but can also generate prediction intervals.
+
+
+# Analysis
+## Forcast of original data
 
 ```{r include=FALSE}
 raw_df<-read.csv("./Data/climate-timeline_Glimpse_Google-Trends.csv", skip = 5) 
@@ -74,7 +97,7 @@ ts_df_training %>% mstl() %>%
 ```
 First, the data set was read and the Time is converted to "date". The variable of interest (absolute search volume) was renamed and converted to a time series object. A training set and test set was then obtained by filtering data. The last 12 observation was selected as holdouts. The time series data set was plotted to check for trends and seasonality. The seasonal period is set using 3 (quarterly) and 12 (manually).
 
-```{r echo=FALSE, warning=FALSE}
+```{r echo=FALSE, warning=FALSE,fig.width=6, fig.height=3}
 plot_grid(
   autoplot(Acf(df$Absolute_Volume, lag = 40, plot=FALSE), 
                 main = "ACF Absolute Search Volume"),
@@ -83,26 +106,8 @@ plot_grid(
 )
 
 ```
+
 The ACF plot displays the correlation between the time series data and its lagged values over different time lags. The plot shows several spikes that are outside the blue dashed confidence interval lines, especially at the initial lags. This suggests that there is a significant autocorrelation at those lags. The PACF plot, on the other hand, shows the partial correlation between the time series and its lagged values, controlling for the values at shorter lags. The significant spike at the first lag indicates a strong correlation. Since the spike at lag 1 is followed by a cutoff, it might suggest an AR(1) component.The slow decay in the ACF plot could indicate that the data is non-stationary or has seasonal patterns.
-
-The models that are being used by this analysis include TBATS (Trigonometric seasonality, Box-Cox transformation, ARMA errors, Trend and
- Seasonal components) model, ARIMA + FOURIER terms, STL+ETS (Seasonal and Trend decomposition using Loess + Error, Trend, Seasonal) model, Neural Network, and SSES (State Space Exponential Smoothing) model. A short description of the models are given below:
- 
-## Description
-### 1 TBATS
-TBATS was designed to forecast time series with multiple seasonal periods. For example, daily data may have a weekly pattern as well as an annual pattern. Or hourly data can have three seasonal periods: a daily pattern, a weekly pattern, and an annual pattern. In TBATS, a Box-Cox transformation is applied to the original time series, and then this is modelled as a linear combination of an exponentially smoothed trend, a seasonal component and an ARMA component. The seasonal components are modelled by trigonometric functions via Fourier series. TBATS conducts some hyper-parameter tuning (e.g. which of these components to keep and which to discard) using AIC.
-
-### 2 ARIMA + FOURIER terms
-The ARIMA model with Fourier terms for seasonal adjustment is a sophisticated approach for forecasting time series data, particularly when the data exhibits complex seasonality that cannot be adequately modeled by simple seasonal ARIMA (SARIMA) components alone.
-
-### 3 STL+ETS
-STL is a versatile and robust method for decomposing time series. STL is an acronym for “Seasonal and Trend decomposition using Loess”, while loess is a method for estimating nonlinear relationships. The ETS models are a family of time series models with an underlying state space model consisting of a level component, a trend component (T), a seasonal component (S), and an error term (E).
-
-### 4 Neural Network
-Neural networks or simulated neural networks are a subset of machine learning which is inspired by the human brain. They mimic how biological neurons communicate with one another to come up with a decision. A neural network consists of an input layer, a hidden layer, and an output layer. The first layer receives raw input, it is processed by multiple hidden layers, and the last layer produces the result. 
-
-### 5 SSES
-The exponential smoothing state space model is a statistical model that generates prediction intervals and point forecasts. It is a stochastic data generating process that can produce an entire forecast distribution. The exponential smoothing methods generate point forecasts, and the statistical models generate the same point forecasts, but can also generate prediction intervals.
 
 ```{r echo=FALSE}
 #TBATS
@@ -110,7 +115,7 @@ TBATS_fit <- tbats(ts_df_training)
 
 TBATS_for <- forecast(TBATS_fit, h=12)
 
-autoplot(ts_df_testing) +
+p11<-autoplot(ts_df_testing) +
   autolayer(TBATS_for, series="TBATS",PI=FALSE)+
   ggtitle("TBATS Forecasted Search Volume")
 
@@ -135,7 +140,7 @@ ARIMA_for <- forecast(ARIMA_fit,
                            )
 
 
-autoplot(ts_df_testing) +
+p12<-autoplot(ts_df_testing) +
   autolayer(ARIMA_for, series="ARIMA",PI=FALSE)+
   ylab("Search Volume")+
   ggtitle("ARIMA Forecasted Search Volume")
@@ -143,11 +148,11 @@ autoplot(ts_df_testing) +
 ARIMA_scores <- accuracy(ARIMA_for$mean,ts_df_testing)
 ```
 
-```{r echo=FALSE}
+```{r echo=FALSE,warning=FALSE}
 #STL+ETS
 ETS_fit <-  stlf(ts_df_training,h=12)
 
-autoplot(ts_df_testing) +
+p13<-autoplot(ts_df_testing) +
   autolayer(ETS_fit$mean, series="ETS",PI=FALSE)+
   ylab("Search Volume")+
   ggtitle("ETS Forecasted Search Volume")
@@ -163,8 +168,8 @@ NN_for <- forecast(NN_fit, h=12,xreg=fourier(ts_df_training,
                                           K=c(1,4),h=12))
 
 #Plot model + observed data
-autoplot(ts_df_testing) +
-  autolayer(NN_for, series="Neural Network",PI=FALSE)+
+p14<-autoplot(ts_df_testing) +
+  autolayer(NN_for, series="NN",PI=FALSE)+
   ylab("Search Volume")+
   ggtitle("NN Forecasted Search Volume")
 
@@ -175,12 +180,14 @@ NN_scores <- accuracy(NN_for$mean,ts_df_testing)
 #SSES
 SSES_seas <- es(ts_df_training,model="AMM",h=12,holdout=FALSE)
 
-autoplot(ts_df_testing) +
+p15<-autoplot(ts_df_testing) +
   autolayer(SSES_seas$forecast, series="SSES")+
   ylab("Search Volume")+
   ggtitle("SSES Forecasted Search Volume")
 
 SSES_scores <- accuracy(SSES_seas$forecast,ts_df_testing)
+
+grid.arrange(p11, p12, p13, p14, p15, nrow = 3)
 ```
 
 ```{r include=FALSE}
@@ -204,6 +211,7 @@ kbl(scores,
   #highlight model with lowest RMSE
   kable_styling(latex_options="striped", stripe_index = which.min(scores[,"RMSE"]))
 ```
+
 The data was trained from December 2003 to March 2023 and tested from April 2023 to March 2024. Predictions were made for the next 12 months. Based on the residual scores, the neural network (NN) model outperformed others, achieving the lowest RMSE of 353,492.8. In contrast, the STL+ETS model registered the highest RMSE at 1,339,766.2. Consequently, the NN model was selected for predicting the absolute search volume. It's important to note that the residual scores were quite high. This high error rate is partly because our base numbers are substantial, typically in the millions. The NN's residual score, although in the hundreds of thousands, represents about 10 percent of the data, which is still considered a significant error. Moving forward, the next step involves removing outliers, which are causing huge spikes, and rerunning the candidate model.
 
 ```{r echo=FALSE}
@@ -220,16 +228,16 @@ autoplot(NN_for_2)+
 
 ```
 
-# Outlier Removal and Model Optimization
+## Outlier Removal and Model Optimization
 This section of the report builds upon the initial time series analysis by addressing outliers in the dataset and re-evaluating the forecasting models to identify the best performer in a refined dataset. The focus is to enhance model accuracy by minimizing the distortion effects caused by outliers.
 
-## Outlier Detection and Interpolation
+### Outlier Detection and Interpolation
 The process began by identifying outliers using the Interquartile Range (IQR) method, a robust technique that determines extreme values based on the distribution's quartiles. Outliers were defined as observations that fall below the first quartile minus 1.5 times the IQR or above the third quartile plus 1.5 times the IQR. These outliers were then replaced using spline interpolation, which provides a smooth estimate that is less likely to be influenced by extreme values, hence maintaining the integrity of the time series.
 
-## Methodology
+### Methodology
 The outliers in the Absolute_Volume data were first visually identified and marked in the dataset. Below is the graph of the time series plot with outliers identified through IQR method.
 
-```{r echo=FALSE, warning=FALSE}
+```{r echo=FALSE, warning=FALSE, fig.width=6, fig.height=3}
 #Identify the outliers
 IQR_value <- IQR(df$Absolute_Volume, na.rm = TRUE)
 upper_bound <- quantile(df$Absolute_Volume, 0.75, na.rm = TRUE) + 1.5 * IQR_value
@@ -250,7 +258,7 @@ ggplot(df, aes(x = Date, y = Absolute_Volume)) +
 The na.spline function from the zoo package was then used to interpolate and fill in these outliers based on neighboring values, which helps in preserving the trend and seasonal patterns of the series. The following figure from the analysis illustrates the original data against the interpolated data, showing how the outliers have been integrated.
 
 
-```{r echo=FALSE}
+```{r echo=FALSE,fig.width=6, fig.height=3}
 df$Interpolated_Volume <- df$Absolute_Volume
 
 outliers_indices <- which(df$Outlier == "Yes")
@@ -270,7 +278,7 @@ ggplot(df, aes(x = Date)) +
 
 ```
 
-## Model Re-evaluation
+### Model Re-evaluation
 With the outliers addressed, the dataset was split into training and testing sets. The analysis method and forecasting models used in the previous section were re-applied to this cleaned data.
 ```{r echo=FALSE}
 clean_df <- df %>%
@@ -290,7 +298,7 @@ ts_clean_df_training %>% mstl() %>%
 When looking at the ACF and PACF plots of the cleaned data frame, the ACF plot reveals strong positive autocorrelations at the initial lags and then gradually decline as the lags increase, indicating potential non-stationarity within the time series data. Furthermore, the ACF plot exhibits a potential seasonal pattern through its recurring spikes at specific lags.
 For the PACF plot, since it has a significant spike at the first lag and then cut off after it, the plot suggests at least an AR(1) model. This result align with the observation with the ACF and PACF plots of the original dataset.
 
-```{r echo=FALSE, warning=FALSE}
+```{r echo=FALSE, warning=FALSE,fig.width=6, fig.height=3}
 plot_grid(
   autoplot(Acf(clean_df$Interpolated_Volume, lag = 40, plot=FALSE), 
                 main = "ACF Absolute Search Volume"),
@@ -298,13 +306,14 @@ plot_grid(
                   main = "PACF Absolute Search Volume")
 )
 ```
+
 ```{r echo=FALSE}
 #TBATS
 TBATS_fit_clean <- tbats(ts_clean_df_training)
 
 TBATS_for_clean <- forecast(TBATS_fit_clean, h=12)
 
-autoplot(ts_clean_df_testing) +
+p21<-autoplot(ts_clean_df_testing) +
   autolayer(TBATS_for_clean, series="TBATS",PI=FALSE)+
   ggtitle("TBATS Forecasted Search Volume")
 
@@ -328,19 +337,19 @@ ARIMA_for_clean <- forecast(ARIMA_fit_clean,
                            h=12
                            )
 
-autoplot(ts_clean_df_testing) +
-  autolayer(ARIMA_for_clean, series="ARIMA_FOURIER",PI=FALSE)+
+p22<-autoplot(ts_clean_df_testing) +
+  autolayer(ARIMA_for_clean, series="ARIMA",PI=FALSE)+
   ylab("Search Volume")+
   ggtitle("ARIMA Forecasted Search Volume")
 
 ARIMA_scores_clean <- accuracy(ARIMA_for_clean$mean,ts_clean_df_testing)
 ```
 
-```{r echo=FALSE}
+```{r echo=FALSE, warning=FALSE}
 #STL+ETS
 ETS_fit_clean <-  stlf(ts_clean_df_training,h=12)
 
-autoplot(ts_clean_df_testing) +
+p23<-autoplot(ts_clean_df_testing) +
   autolayer(ETS_fit_clean$mean, series="ETS",PI=FALSE)+
   ylab("Search Volume")+
   ggtitle("ETS Forecasted Search Volume")
@@ -356,8 +365,8 @@ NN_for_clean <- forecast(NN_fit_clean, h=12,xreg=fourier(ts_clean_df_training,
                                           K=c(1,4),h=12))
 
 #Plot model + observed data
-autoplot(ts_clean_df_testing) +
-  autolayer(NN_for_clean, series="Neural Network",PI=FALSE)+
+p24<-autoplot(ts_clean_df_testing) +
+  autolayer(NN_for_clean, series="NN",PI=FALSE)+
   ylab("Search Volume")+
   ggtitle("NN Forecasted Search Volume")
 
@@ -368,13 +377,13 @@ NN_scores_clean <- accuracy(NN_for_clean$mean,ts_clean_df_testing)
 #SSES
 SSES_seas_clean <- es(ts_clean_df_training,model="AMM",h=12,holdout=FALSE)
 
-autoplot(ts_clean_df_testing) +
+p25<-autoplot(ts_clean_df_testing) +
   autolayer(SSES_seas_clean$forecast, series="SSES")+
   ylab("Search Volume")+
   ggtitle("SSES Forecasted Search Volume")
 
 SSES_scores_clean <- accuracy(SSES_seas_clean$forecast,ts_clean_df_testing)
-
+grid.arrange(p21, p22, p23, p24, p25, nrow = 3)
 ```
 
 ```{r include=FALSE}
@@ -385,7 +394,7 @@ scores_clean <- as.data.frame(
 row.names(scores_clean) <- c("STL+ETS", "ARIMA+Fourier","TBATS","NN","SSES")
 ```
 
-## Results
+### Results
 Below is the model score table of cleaned dataset with outliers removed. Compared to the original data frame, the cleaning process significantly improved model performance. The TBATS model emerged as the best model with the lowest RMSE, indicating the highest forecasting accuracy among the evaluated models on the cleaned dataset. The improvement underscores the impact of outliers removal on enhancing model reliability and accuracy.
 
 ```{r echo=FALSE}
@@ -411,15 +420,15 @@ autoplot(TBATS_for_clean_2) +
 
 ```
 
-## Conclusion
+### Conclusion
 The second part of the analysis highlighted the critical role of preprocessing steps, like outliers removal, in predictive analytics. By cleaning the data, all models performed better, with TBATS being the most effective in forecasting under the new dataset conditions. This phase not only provided insights into more reliable forecasting but also demonstrated the necessity of robust data handling methods in analytics workflows.
 
-## Limitations
+### Limitations
 One limitation in this section is the potential risk of overfitting our models. While we have implemented sophisticated techniques to interpolate and remove outliers, there is an inherent danger that our models may become too finely tuned to our existing data. This overfitting can easily lead to less accurate forecasts.
 Moreover, our current dataset may not be extensive enough to conclusively differentiate between genuine seasonal effects and anomalies. Some of the spikes might not represent underlying seasonal trends but could instead be one-time events or products of irregular fluctuations. These non-recurring spikes could potentially skew the forecasts.
 To mitigate these concerns and refine our understanding of the time series, it is recommended that we continue to collect data for several more years. An expanded dataset over a longer time horizon will enable us to more reliably conclusion whether the observed spikes are indicative of true seasonality or if they are merely outliers. A broader dataset will also help improve the robustness of our models, making them more adaptable and less prone to overfitting.
 
-# Spatial Characteristics
+## Spatial Characteristics
 In the global distribution map of climate-related topic web search, African countries enjoy the most popularity as a fraction of total searches in their region. Related search terms account for a moderate proportion in North America, Australia and South Asia, while it was not that popular in South America, Europe and other Asia regions. On a country level, Ethiopia and Zimbabwe had the largest proportion of climate search terms in their total searches.
 
 Population can be a possible reason for the difference. In African countries, where few people have access to the Internet, the proportion of climate search terms may be magnified. In addition, international organizations and non-governmental organizations such as the United Nations Environment Program are headquartered in Africa, leading to related behaviors. The extent to which different countries are affected by climate change is also important. Countries like the Philippines, which are at the forefront of climate change, rank very high both in the interest index and in absolute values. People who live there are naturally more concerned about the climate.
