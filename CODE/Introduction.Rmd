@@ -1,0 +1,20 @@
+---
+title: "Introduction"
+author: "Zhenghao Lin"
+date: "2024-04-23"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Introduction, Motivations, Relevance, Objectives
+Climate change has become one of the most pressing issues facing humanity in the 21st century. With the escalating impacts of global warming, extreme weather events, and environmental degradation becoming more visible, public awareness and concern have surged. In this digital age, the internet has become a primary avenue for education and engagement on environmental issues. As the world's predominant search engine, Google offers invaluable insights into global interest in climate topics, making it a valuable resource for public concern evaluation.
+This report utilizes Google Trends data to perform a comprehensive time series analysis of the search volume for "Climate" to identify underlying patterns, trends, and anomalies in public interest over time. Using advanced statistical tools and methods, this analysis will:
+Forecast Future Trends: Apply various models to the original dataset to predict future changes in public interest concerning climate issues.
+Assess the Impact of Outliers: Compare forecasts from the original data with those from a modified dataset that excludes outliers, evaluating how these anomalies affect overall predictions.
+Analyze Spatial Variations: Conduct a spatial analysis of relative search volumes to map regional differences in interest regarding climate-related topics across the globe.
+Through these analyses, the report seeks to provide a comprehensive overview of the public's engagement with climate issues, offering insights that could inform policymakers, educators, and environmental organizations in their efforts to foster greater awareness and action.
+
