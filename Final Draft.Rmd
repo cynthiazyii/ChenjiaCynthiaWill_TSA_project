@@ -111,7 +111,8 @@ TBATS_fit <- tbats(ts_df_training)
 TBATS_for <- forecast(TBATS_fit, h=12)
 
 autoplot(ts_df_testing) +
-  autolayer(TBATS_for, series="TBATS",PI=FALSE)
+  autolayer(TBATS_for, series="TBATS",PI=FALSE)+
+  ggtitle("TBATS Forecasted Search Volume")
 
 TBATS_scores <- accuracy(TBATS_for$mean,ts_df_testing)
 ```
@@ -133,11 +134,11 @@ ARIMA_for <- forecast(ARIMA_fit,
                            h=12
                            )
 
-autoplot(ARIMA_for) + ylab("Search Volume")
 
 autoplot(ts_df_testing) +
-  autolayer(ARIMA_for, series="ARIMA_FOURIER",PI=FALSE) +
-  ylab("Search Volume")
+  autolayer(ARIMA_for, series="ARIMA",PI=FALSE)+
+  ylab("Search Volume")+
+  ggtitle("ARIMA Forecasted Search Volume")
 
 ARIMA_scores <- accuracy(ARIMA_for$mean,ts_df_testing)
 ```
@@ -145,10 +146,11 @@ ARIMA_scores <- accuracy(ARIMA_for$mean,ts_df_testing)
 ```{r echo=FALSE}
 #STL+ETS
 ETS_fit <-  stlf(ts_df_training,h=12)
-autoplot(ETS_fit) + ylab("Search Volume")
+
 autoplot(ts_df_testing) +
-  autolayer(ETS_fit, series="STL + ETS",PI=FALSE) +
-  ylab("Search Volume")
+  autolayer(ETS_fit$mean, series="ETS",PI=FALSE)+
+  ylab("Search Volume")+
+  ggtitle("ETS Forecasted Search Volume")
 
 ETS_scores <- accuracy(ETS_fit$mean,ts_df_testing)
 ```
@@ -163,7 +165,8 @@ NN_for <- forecast(NN_fit, h=12,xreg=fourier(ts_df_training,
 #Plot model + observed data
 autoplot(ts_df_testing) +
   autolayer(NN_for, series="Neural Network",PI=FALSE)+
-  ylab("Search Volume") 
+  ylab("Search Volume")+
+  ggtitle("NN Forecasted Search Volume")
 
 NN_scores <- accuracy(NN_for$mean,ts_df_testing)
 ```
@@ -174,7 +177,8 @@ SSES_seas <- es(ts_df_training,model="AMM",h=12,holdout=FALSE)
 
 autoplot(ts_df_testing) +
   autolayer(SSES_seas$forecast, series="SSES")+
-  ylab("Search Volume") 
+  ylab("Search Volume")+
+  ggtitle("SSES Forecasted Search Volume")
 
 SSES_scores <- accuracy(SSES_seas$forecast,ts_df_testing)
 ```
@@ -244,6 +248,8 @@ ggplot(df, aes(x = Date, y = Absolute_Volume)) +
 ```
 
 The na.spline function from the zoo package was then used to interpolate and fill in these outliers based on neighboring values, which helps in preserving the trend and seasonal patterns of the series. The following figure from the analysis illustrates the original data against the interpolated data, showing how the outliers have been integrated.
+
+
 ```{r echo=FALSE}
 df$Interpolated_Volume <- df$Absolute_Volume
 
@@ -263,6 +269,7 @@ ggplot(df, aes(x = Date)) +
        y = "Volume")
 
 ```
+
 ## Model Re-evaluation
 With the outliers addressed, the dataset was split into training and testing sets. The analysis method and forecasting models used in the previous section were re-applied to this cleaned data.
 ```{r echo=FALSE}
@@ -298,7 +305,8 @@ TBATS_fit_clean <- tbats(ts_clean_df_training)
 TBATS_for_clean <- forecast(TBATS_fit_clean, h=12)
 
 autoplot(ts_clean_df_testing) +
-  autolayer(TBATS_for_clean, series="TBATS",PI=FALSE)
+  autolayer(TBATS_for_clean, series="TBATS",PI=FALSE)+
+  ggtitle("TBATS Forecasted Search Volume")
 
 TBATS_scores_clean <- accuracy(TBATS_for_clean$mean,ts_clean_df_testing)
 ```
@@ -320,24 +328,26 @@ ARIMA_for_clean <- forecast(ARIMA_fit_clean,
                            h=12
                            )
 
-autoplot(ARIMA_for_clean) + ylab("Search Volume")
-
 autoplot(ts_clean_df_testing) +
-  autolayer(ARIMA_for_clean, series="ARIMA_FOURIER",PI=FALSE) +
-  ylab("Search Volume")
+  autolayer(ARIMA_for_clean, series="ARIMA_FOURIER",PI=FALSE)+
+  ylab("Search Volume")+
+  ggtitle("ARIMA Forecasted Search Volume")
 
 ARIMA_scores_clean <- accuracy(ARIMA_for_clean$mean,ts_clean_df_testing)
 ```
+
 ```{r echo=FALSE}
 #STL+ETS
 ETS_fit_clean <-  stlf(ts_clean_df_training,h=12)
-autoplot(ETS_fit_clean) + ylab("Search Volume")
+
 autoplot(ts_clean_df_testing) +
-  autolayer(ETS_fit_clean, series="STL + ETS",PI=FALSE) +
-  ylab("Search Volume")
+  autolayer(ETS_fit_clean$mean, series="ETS",PI=FALSE)+
+  ylab("Search Volume")+
+  ggtitle("ETS Forecasted Search Volume")
 
 ETS_scores_clean <- accuracy(ETS_fit_clean$mean,ts_clean_df_testing)
 ```
+
 ```{r echo=FALSE}
 #NN
 NN_fit_clean <- nnetar(ts_clean_df_training,p=0,P=1,xreg=fourier(ts_clean_df_training, K=c(1,4)))
@@ -348,17 +358,20 @@ NN_for_clean <- forecast(NN_fit_clean, h=12,xreg=fourier(ts_clean_df_training,
 #Plot model + observed data
 autoplot(ts_clean_df_testing) +
   autolayer(NN_for_clean, series="Neural Network",PI=FALSE)+
-  ylab("Search Volume") 
+  ylab("Search Volume")+
+  ggtitle("NN Forecasted Search Volume")
 
 NN_scores_clean <- accuracy(NN_for_clean$mean,ts_clean_df_testing)
 ```
+
 ```{r echo=FALSE}
 #SSES
 SSES_seas_clean <- es(ts_clean_df_training,model="AMM",h=12,holdout=FALSE)
 
 autoplot(ts_clean_df_testing) +
   autolayer(SSES_seas_clean$forecast, series="SSES")+
-  ylab("Search Volume") 
+  ylab("Search Volume")+
+  ggtitle("SSES Forecasted Search Volume")
 
 SSES_scores_clean <- accuracy(SSES_seas_clean$forecast,ts_clean_df_testing)
 
@@ -371,6 +384,7 @@ scores_clean <- as.data.frame(
   )
 row.names(scores_clean) <- c("STL+ETS", "ARIMA+Fourier","TBATS","NN","SSES")
 ```
+
 ## Results
 Below is the model score table of cleaned dataset with outliers removed. Compared to the original data frame, the cleaning process significantly improved model performance. The TBATS model emerged as the best model with the lowest RMSE, indicating the highest forecasting accuracy among the evaluated models on the cleaned dataset. The improvement underscores the impact of outliers removal on enhancing model reliability and accuracy.
 
@@ -383,7 +397,9 @@ kbl(scores_clean,
   #highlight model with lowest RMSE
   kable_styling(latex_options="striped", stripe_index = which.min(scores_clean[,"RMSE"]))
 ```
+
 Below is the forecast of the search volume of term "Climate" on google for next 12 months with TBATS forecasting model using cleaned dataset with outliers removded.
+
 ```{r echo=FALSE}
 #FORECAST for clean_df
 TBATS_fit_clean_2 <- tbats(ts_clean_df)
@@ -394,6 +410,7 @@ autoplot(TBATS_for_clean_2) +
   ylab("Search Volume") 
 
 ```
+
 ## Conclusion
 The second part of the analysis highlighted the critical role of preprocessing steps, like outliers removal, in predictive analytics. By cleaning the data, all models performed better, with TBATS being the most effective in forecasting under the new dataset conditions. This phase not only provided insights into more reliable forecasting but also demonstrated the necessity of robust data handling methods in analytics workflows.
 
@@ -417,7 +434,7 @@ merged_data <- left_join(world_map, spatial, by = c("name" = "Country"))
 merged_data$Index <- as.numeric(as.character(merged_data$Index))
 ggplot(data = merged_data) +
   geom_sf(aes(fill = Index)) +
-  scale_fill_gradient(low = "white", high = 4, na.value = "lightgrey") +
+  scale_fill_gradient(low = "#E6F2FD", high = 4, na.value = "lightgrey") +
   labs(title = "Global Climate Web Sesearch Map",
        fill = "Search Interest Index")
 
