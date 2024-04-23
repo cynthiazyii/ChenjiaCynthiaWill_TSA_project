@@ -1,5 +1,6 @@
 ---
-title: "Final Draft"
+title: "Forecasting Climate-related Search Terms in Google Web Search"
+subtitle: "Repository: https://github.com/cynthiazyii/ChenjiaCynthiaWill_TSA_project"
 author: "Zhenghao Lin, Chenjia Liu, Cynthia Zhou"
 date: "2024-04-23"
 output: pdf_document
@@ -420,14 +421,6 @@ autoplot(TBATS_for_clean_2) +
 
 ```
 
-### Conclusion
-The second part of the analysis highlighted the critical role of preprocessing steps, like outliers removal, in predictive analytics. By cleaning the data, all models performed better, with TBATS being the most effective in forecasting under the new dataset conditions. This phase not only provided insights into more reliable forecasting but also demonstrated the necessity of robust data handling methods in analytics workflows.
-
-### Limitations
-One limitation in this section is the potential risk of overfitting our models. While we have implemented sophisticated techniques to interpolate and remove outliers, there is an inherent danger that our models may become too finely tuned to our existing data. This overfitting can easily lead to less accurate forecasts.
-Moreover, our current dataset may not be extensive enough to conclusively differentiate between genuine seasonal effects and anomalies. Some of the spikes might not represent underlying seasonal trends but could instead be one-time events or products of irregular fluctuations. These non-recurring spikes could potentially skew the forecasts.
-To mitigate these concerns and refine our understanding of the time series, it is recommended that we continue to collect data for several more years. An expanded dataset over a longer time horizon will enable us to more reliably conclusion whether the observed spikes are indicative of true seasonality or if they are merely outliers. A broader dataset will also help improve the robustness of our models, making them more adaptable and less prone to overfitting.
-
 ## Spatial Characteristics
 In the global distribution map of climate-related topic web search, African countries enjoy the most popularity as a fraction of total searches in their region. Related search terms account for a moderate proportion in North America, Australia and South Asia, while it was not that popular in South America, Europe and other Asia regions. On a country level, Ethiopia and Zimbabwe had the largest proportion of climate search terms in their total searches.
 
@@ -448,5 +441,28 @@ ggplot(data = merged_data) +
        fill = "Search Interest Index")
 
 ```
+
+# Limiations
+Our dataset inherently possesses several limitations that could skew our findings' accuracy. Initially, we utilized both the absolute and relative search volumes of the term "Climate". However, the ambiguity of this term means it is often searched in contexts unrelated to climate change, such as weather conditions or trends in various fields. This broad usage can lead to an overestimation of both absolute and relative search volumes. Additionally, while Google remains the most popular search engine globally, it is not the only one with significant market presence. For example, Baidu holds a substantial share of the market, particularly in China—the country with the second largest population. By not incorporating data from Baidu, particularly given its dominance in Chinese searches, our research may overlook a critical segment of global search trends, potentially resulting in biased outcomes.
+
+Within the data obtained from Google, several issues still persist. Our analysis from first section highlighted the presence of outliers—abnormal spikes in the data which could distort our forecasts. To mitigate potential biases from these anomalies, we removed these outliers to try to achieve more reliable outcomes. Although this method generally improved model performance, it raised some new concerns, especially the risk of overfitting. By employing sophisticated techniques to detect and eliminate outliers, we unavoidably increased the likelihood that our models might become overly fitted to our current dataset. Such overfitting could undermine the accuracy of future predictions by making our models less capable of generalizing from new data. Moreover, our current dataset may not be extensive enough to conclusively differentiate between genuine seasonal effects and anomalies. Some of the spikes might not represent underlying seasonal trends but could instead be one-time events or products of irregular fluctuations. These non-recurring spikes could potentially skew the forecasts.
+
+Another notable issue is the underrepresentation of certain countries in our study. The spatial analysis section excludes countries with low search volumes, many of which are also experiencing significant impacts from climate change. This omission could further contribute to an incomplete global perspective in our research.
+
+# Next Steps
+In the future, if resources and time allowed, we will take following steps to further our investigation. 
+
+Firstly, we need to expand our data sources. To address the issue of over-reliance on Google and the consequent geographic and demographic biases, we should integrate data from other significant search engines, such as Baidu. By broadening our dataset to include multiple search engines, we can achieve a more balanced and globally representative analysis. This expansion will help us better understand regional differences in search behaviors and refine our interpretations of global interest in climate-related topics.
+
+Secondly, improving data filtering techniques to better differentiate between searches related to climate change and those triggered by unrelated factors is essential. We hope that Google can develop more sophisticated algorithms that can contextually analyze search terms and distinguish between searches for climate change information and other uses of the word "climate." This might involve natural language processing (NLP) techniques or machine learning models trained.
+
+Additionally, addressing the problem of data outliers and overfitting requires a revision of our current methodologies. We should implement more robust statistical methods to handle outliers without removing them entirely, thus preserving valuable data that might be relevant for understanding extreme but significant phenomena. 
+
+Lastly, we must strive to include underrepresented regions in our analysis. It’s important to develop strategies to estimate search volumes in countries with lower internet penetration or those typically excluded from digital data analyses. This might involve proxy measures or collaborations with local data providers to capture a fuller picture of the global discourse around climate change.
+
+# Conclusion
+This report analyzes the search volume trends of the term "Climate" using Google Trends data to gain insights into public interest over time. Our methodology involved a comprehensive time series analysis on both original dataset and the adjusted data frame with outliers removed, and an assessment comparison of search behaviors globally.
+
+The results of our analysis indicate a steady increase in the future search volume for "Climate." This upward trend suggests a growing public awareness and interest in climate-related issues. By successfully removing outliers and refining the data, the predictive models, particularly the TBATS model, provided robust forecasts that reinforce our understanding of this increasing engagement. This increase in search volume can be interpreted as a positive sign that climate change is becoming a more significant concern for people worldwide, potentially signaling greater support for policies and initiatives aimed at combating climate change. As we move forward, it will be important to continue monitoring these trends and expand our data collection efforts to include a wider array of search engines and regions to further validate and refine our forecasts. By doing so, we can ensure that our models remain adaptable and accurate, providing valuable insights to policymakers, educators, and environmental organizations aiming to foster an informed and engaged public.
 
 
